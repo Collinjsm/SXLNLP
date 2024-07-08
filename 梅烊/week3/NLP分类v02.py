@@ -3,7 +3,6 @@ import numpy as np
 import torch as torch
 import json
 import random
-import os
 
 import matplotlib.pyplot as pl
 
@@ -108,40 +107,45 @@ class NlpClassModel(torch.nn.Module):
 # 对模型输出的一个预测值tensor进行转换，使其可以和sample的真实值进行对比
 # y_pred_model.shape= (1, classify.out_features)
 # 一维时使用dim=0，使用dim=1报错
-def transYpredForCompare(y_pred_model):
-    y =torch.nn.functional.softmax(y_pred_model, dim=0)
-    print("pred_y after soft max:",y)
-    index_pred_y = torch.argmax(y).item()
-    print("y.max.index :", index_pred_y)
-    return index_pred_y    
+# def transYpredForCompare(y_pred_model):
+#     # print("pred_y before softmax:", y_pred_model)
+#     # y =torch.nn.functional.softmax(y_pred_model, dim=0)
+#     # print("pred_y after softmax:",y)
+#     index_pred_y = torch.argmax(y).item()
+#     print("y_pred.max.index :", index_pred_y)
+#     return index_pred_y    
     
 
 # 评估函数
 # 用来评估每一轮训练的效果
-def evaluate(model,sample_size, vector_dim):
+def evaluate(model,sample_size, sen_len):
     model.eval()
-    e_x,e_y = build_dataset(sample_size, vector_dim)
-    correct ,wrong =0,0
-    
+    e_x,e_y = build_dataset(sample_size, sen_len)
+    correct ,wrong =0,0    
     with torch.no_grad():
         pred_y = model(e_x)
-        for p_y, t_y in zip(pred_y, e_y):
-            print("real y : ",t_y.item())
-            if transYpredForCompare(p_y) == t_y.item():
+        for p_y, t_y, t_x in zip(pred_y, e_y, e_x):
+            # print("begin=======================================")
+            # print("real x : ",t_x.tolist())
+            # print("real y : ",t_y)
+            # print("pred y ",p_y.tolist())
+            # print("pred y max index :",torch.argmax(p_y))
+            if torch.argmax(p_y).item() == t_y.item():
                 correct +=1
             else:
                 wrong +=1
+            # print("end==========================================")
     print("正确预测个数：%d, 正确率：%f" % (correct, correct / (correct + wrong)))
     return correct / (correct + wrong)
 
 
 def main():
     # 模型参数
-    epoch = 10
-    batch_size = 200
+    epoch = 20
+    batch_size = 400
 
     # 每epoch的训练样本数
-    train_size = 2000
+    train_size = 6000
 
     # 词表向量维度
     vector_dim = 5
@@ -162,22 +166,26 @@ def main():
     # 选定优化器
     optim = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    # 设置模型为训练模式
-    model.train()
+
+    train_x,train_y=build_dataset(train_size,sen_len)
+
     log =[]
     for i in range(epoch): 
-        watch_loss = []
-        for j in range(train_size//batch_size):
-            # 构建train_size个样本，每个样本有sen_len个字符
-            train_x,train_y=build_dataset(train_size,sen_len)
+        # 设置模型为训练模式
+        model.train()
 
+        watch_loss = []
+        for batch_index in range(train_size//batch_size):
+            # 构建train_size个样本，每个样本有sen_len个字符
+            x = train_x[batch_index * batch_size: (batch_index + 1) * batch_size]
+            y = train_y[batch_index * batch_size: (batch_index + 1) * batch_size]
             # print(train_x,train_y)
 
             # 梯度归零
             optim.zero_grad()
 
             # 计算损失值
-            loss = model(train_x,train_y)
+            loss = model.forward(x,y)
 
             # 计算梯度
             loss.backward()
@@ -191,9 +199,9 @@ def main():
         print("=========\n第%d轮平均loss:%f" % (i + 1, np.mean(watch_loss)))
         
         # 评估模型一轮训练的效果
-        # acc = evaluate(model,10,vector_dim )
+        acc = evaluate(model,100,sen_len )
         
-        # log.append([acc,float(np.mean(watch_loss))])
+        log.append([acc,float(np.mean(watch_loss))])
         # end first for
 
     # torch.save(model.state_dict(),"downloads/nlp_rnn_model.pt")
@@ -210,27 +218,24 @@ def predict(model_path , vector_dim, hidden_size, sen_len , test_samples):
     with torch.no_grad():
         result = model(test_samples)
     for input_vec, res in zip(test_samples, result):
-        print("输入：%s, 预测类别：%s, 概率值：%s" % (np.array(input_vec), 
-                                          np.argwhere(27 == np.array(input_vec))[0] if np.argwhere(27 == np.array(input_vec)).size != 0 else sen_len , 
-                                          res))
+        print("输入：%s, 预测类别：%s, 概率值：%s" % (np.array(input_vec),  torch.argmax(res),  res))
 
 if __name__ == "__main__":
     main()
 
-    test_samples=torch.tensor( [[23, 20, 17,  9,  4],
-        [18, 24, 23,  9,  9],
-        [ 7,  7, 19, 18,  9],
-        [ 4, 27, 27,  1, 23],
-        [18,  6,  5,  1, 14],
-        [17, 14, 27,  7, 14],
-        [ 9, 12,  7, 20,  5],
-        [ 5,  6, 17,  4,  1],
-        [ 6, 21,  7, 27, 24],
-        [18, 21,  4, 11,  9]])
+    # test_samples=torch.tensor([[ 9,  7,  4, 27,  1,  7, 18,  7,  6, 27],
+    #     [12, 17, 18,  4,  6,  4, 20, 19,  6, 21],
+    #     [17,  7, 23, 18, 18, 18, 23,  1, 11, 14],
+    #     [24,  5, 14,  4,  4, 14, 12, 25,  1,  9],
+    #     [17,  4, 19, 14, 20, 11, 18, 25, 18,  9],
+    #     [24,  9, 12, 18, 21, 12, 17, 12,  4,  6],
+    #     [14, 18, 21, 17, 19, 24, 21, 27, 25, 20],
+    #     [25, 19, 21,  7, 19, 11, 17,  9, 25, 12],
+    #     [ 1,  6, 19, 21,  5, 12, 24,  9, 27,  1]])
     # predict("downloads/nlp_rnn_model.pt",vector_dim,hidden_size,sen_len,test_samples)
-    predict("week3 深度学习处理文本/nlp_rnn_model.pt",vector_dim = 5,hidden_size =10 ,sen_len =10 ,test_samples = test_samples)
+    # predict("week3 深度学习处理文本/nlp_rnn_model.pt",vector_dim = 5,hidden_size =10 ,sen_len =10 ,test_samples = test_samples)
 
-    # samples , y = build_dataset(10, 5)
+    # samples , y = build_dataset(9, 10)
     # print(samples)
 
     # arr =torch.tensor([23, 20, 17,  9,  4]) 
