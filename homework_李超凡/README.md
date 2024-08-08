@@ -1,5 +1,20 @@
 # 李超凡的课后作业
 
+## 2024.08.01 week7
+    1. NLP语言模型任务pipeline √
+    2. 文本分类任务 √
+    3. 使用不同模型和参数组合训练模型，比较模型准确率 √
+    注：由于电脑性能对训练速度的限制，目前仅完成"fast_text", "lstm", "gru", "rnn", "cnn", "gated_cnn", "stack_gated_cnn", "rcnn", "bert", "bert_lstm" 10个模型的不同参数组合验证，后续会继续运行并更新结果。
+
+## 2024.07.25 week6
+    1. 计算bert模型可训练参数量 √
+
+## 2024.07.18 week5
+    1. 使用gensim训练一个词向量模型 √
+    2. 使用kmeans聚类实现对新闻标题聚类 √
+    3. 类内点到聚类中心的平均距离对类排序，输出平均距离最小的前k个类标题 √
+
+
 ## 2024.07.08 week4
     1. total_segmentation_combination.py:作业，递归实现全切分并获取所有正确分词组合 √
     2. sbornn.py:手写课上RNN分词 √
@@ -16,7 +31,6 @@
     1. 运行课堂老师作业案例 √
     2. 参考课上案例编写复杂逻辑，实现深度学习全流程 √
     3. 课堂主要内容思维导图整理 √
-![image](https://github.com/ChaofanLi/SXLNLP/assets/162019957/eec5cba4-7b91-4091-b77d-eee7c48a2864)
 
 
 ## 2024.06.26 week1
